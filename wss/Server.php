@@ -109,10 +109,16 @@ abstract class Server extends \Utils\Verbose {
 				if(!empty($read)){
 					if(@stream_select($read, $write, $except, 0)){
 						foreach($read as $socket_id => $socket){
-							$client = $this->clients[$socket_id];
+							if(!is_resource($socket)){
+								if(isset($this->clients[$socket_id])){
+									$this->close($this->clients[$socket_id]);
+								}
+								continue;
+							}
 							
+							$client = $this->clients[$socket_id] ?? null;
 							//	Check if another fiber is already reading from the client
-							if(!$client->is_buffering()){
+							if($client && !$client->is_buffering()){
 								$this->read($socket, $client);
 							}
 						}
@@ -231,14 +237,15 @@ abstract class Server extends \Utils\Verbose {
 	
 	private function read($socket, Client $client): void{
 		$fiber = new \Fiber(function($socket, Client $client): void{
-			$read 	= [$socket];
-			$write 	= [];
-			
 			$time = time();
 			do{
 				if(!is_resource($socket)){
 					return;
 				}
+				
+				$read 	= [$socket];
+				$write 	= [];
+				$except	= null;
 				
 				if(stream_select($read, $write, $except, 0)){
 					if(($data = fread($socket, self::BUFFER_READ)) !== false){
@@ -304,17 +311,18 @@ abstract class Server extends \Utils\Verbose {
 		}
 		
 		$fiber = new \Fiber(function($socket, string $data, $success): void{
-			$read 	= [];
-			$write 	= [$socket];
-			
 			$time = time();
 			do{
 				if(!is_resource($socket)){
 					return;
 				}
 				
+				$read 	= [];
+				$write 	= [$socket];
+				$except	= null;
+				
 				if(stream_select($read, $write, $except, 0)){
-					if(fwrite($socket, $data, self::BUFFER_WRITE) !== false){
+					if(@fwrite($socket, $data, self::BUFFER_WRITE) !== false){
 						if(($data = substr($data, self::BUFFER_WRITE)) === ''){
 							if($success){
 								$success();
