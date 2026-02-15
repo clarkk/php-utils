@@ -103,8 +103,11 @@ abstract class Server extends \Utils\Verbose {
 		
 		$read = new \Fiber(function(): void{
 			while(true){
-				if($read = $this->client_sockets){
-					if(stream_select($read, $write, $except, 0)){
+				//	Purge dead sockets
+				$read = array_filter($this->client_sockets, 'is_resource');
+				
+				if(!empty($read)){
+					if(@stream_select($read, $write, $except, 0)){
 						foreach($read as $socket_id => $socket){
 							$client = $this->clients[$socket_id];
 							
@@ -233,6 +236,10 @@ abstract class Server extends \Utils\Verbose {
 			
 			$time = time();
 			do{
+				if(!is_resource($socket)){
+					return;
+				}
+				
 				if(stream_select($read, $write, $except, 0)){
 					if(($data = fread($socket, self::BUFFER_READ)) !== false){
 						try{
@@ -302,6 +309,10 @@ abstract class Server extends \Utils\Verbose {
 			
 			$time = time();
 			do{
+				if(!is_resource($socket)){
+					return;
+				}
+				
 				if(stream_select($read, $write, $except, 0)){
 					if(fwrite($socket, $data, self::BUFFER_WRITE) !== false){
 						if(($data = substr($data, self::BUFFER_WRITE)) === ''){
