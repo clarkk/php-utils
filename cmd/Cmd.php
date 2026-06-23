@@ -76,7 +76,7 @@ class Cmd {
 			$stderr 		= stream_get_contents($this->pipes[self::PIPE_STDERR]);
 			$this->close();
 			
-			return $trim ? trim($stderr) : $stderr;
+			return trim($stderr);
 		}
 		
 		stream_set_read_buffer($this->pipes[self::PIPE_STDOUT], 0);
